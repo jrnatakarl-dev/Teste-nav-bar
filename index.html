@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Laboratório Matemático 3D</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><div class="logo">∇</div><div><strong>Laboratório Matemático 3D</strong><span>Exploração interativa de Cálculo Multivariável</span></div></div>
+      <div class="top-actions"><button id="themeBtn" title="Alternar tema">◐</button><button id="resetBtn" class="ghost">Reiniciar</button></div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel intro">
+          <div class="eyebrow">EXPERIMENTO</div>
+          <h1>Superfícies e campos</h1>
+          <p>Altere a função e observe, em tempo real, sua geometria, derivadas, gradiente e plano tangente.</p>
+        </section>
+
+        <section class="panel">
+          <label for="preset">Experimento</label>
+          <select id="preset">
+            <option value="paraboloid">Paraboloide: x² + y²</option>
+            <option value="saddle">Sela: x² − y²</option>
+            <option value="sinusoid">Ondas: sen(x)·cos(y)</option>
+            <option value="gaussian">Gaussiana: e^(−x²−y²)</option>
+            <option value="monkey">Função mista: sen(xy)/(1+x²+y²)</option>
+          </select>
+          <label for="formula">f(x,y)</label>
+          <div class="formula-row"><input id="formula" value="x^2 + y^2"><button id="applyBtn">Aplicar</button></div>
+          <div class="examples"><button data-formula="x^2+y^2">x²+y²</button><button data-formula="x^2-y^2">x²−y²</button><button data-formula="sin(x)*cos(y)">sen(x)cos(y)</button><button data-formula="exp(-(x^2+y^2))">Gaussiana</button></div>
+          <div id="error" class="error hidden"></div>
+        </section>
+
+        <section class="panel controls">
+          <div class="control"><div><span>Domínio</span><b id="rangeVal">[-5, 5]</b></div><input id="range" type="range" min="2" max="10" step="0.5" value="5"></div>
+          <div class="control"><div><span>Resolução</span><b id="resVal">65×65</b></div><input id="resolution" type="range" min="25" max="105" step="10" value="65"></div>
+          <div class="control"><div><span>Ponto x</span><b id="xVal">1.00</b></div><input id="xPoint" type="range" min="-5" max="5" step="0.05" value="1"></div>
+          <div class="control"><div><span>Ponto y</span><b id="yVal">1.00</b></div><input id="yPoint" type="range" min="-5" max="5" step="0.05" value="1"></div>
+        </section>
+
+        <section class="panel toggles">
+          <label><input id="gridToggle" type="checkbox" checked> Grade 3D</label>
+          <label><input id="planeToggle" type="checkbox"> Plano tangente</label>
+          <label><input id="gradientToggle" type="checkbox"> Campo gradiente</label>
+          <label><input id="pointToggle" type="checkbox" checked> Ponto de análise</label>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="viewport-card">
+          <div id="viewport"></div>
+          <div class="viewport-overlay">
+            <div class="legend"><span class="dot low"></span> menor z <span class="dot high"></span> maior z</div>
+            <div class="map-tools" aria-label="Controles de navegação"><button id="zoomOutBtn" title="Diminuir zoom">−</button><button id="zoomResetBtn" title="Centralizar e restaurar zoom">⌂</button><button id="zoomInBtn" title="Aumentar zoom">+</button></div>
+            <div class="hint desktop-hint">🗺️ Arraste para mover · scroll para zoom · botão direito para girar</div><div class="hint mobile-hint">🗺️ <b>1 dedo:</b> arraste para navegar · <b>2 dedos:</b> pinça para ampliar/reduzir</div>
+          </div>
+          <div id="loading" class="loading">Calculando superfície…</div>
+        </div>
+
+        <div class="metrics">
+          <article><span>f(x,y)</span><strong id="metricF">—</strong><small>valor no ponto</small></article>
+          <article><span>∂f/∂x</span><strong id="metricFx">—</strong><small>derivada parcial</small></article>
+          <article><span>∂f/∂y</span><strong id="metricFy">—</strong><small>derivada parcial</small></article>
+          <article><span>‖∇f‖</span><strong id="metricGrad">—</strong><small>módulo do gradiente</small></article>
+        </div>
+
+        <div class="lower-grid">
+          <section class="panel tabs-panel">
+            <div class="tabs">
+              <button class="tab active" data-tab="analysis">Análise</button>
+              <button class="tab" data-tab="derivatives">Derivadas</button>
+              <button class="tab" data-tab="contours">Curvas de nível</button>
+              <button class="tab" data-tab="integration">Integração</button>
+            </div>
+            <div id="analysis" class="tab-content active">
+              <div class="info-grid">
+                <div><span>Ponto</span><b id="pointText">(1.00, 1.00)</b></div>
+                <div><span>Gradiente</span><b id="gradientText">(—, —)</b></div>
+                <div><span>Plano tangente</span><b id="planeText">z = —</b></div>
+                <div><span>Classificação local</span><b id="criticalText">—</b></div>
+              </div>
+              <div class="explain"><strong>Como interpretar</strong><p>O gradiente aponta para a direção de maior crescimento de f. O plano tangente aproxima a superfície nas proximidades do ponto selecionado.</p></div>
+            </div>
+            <div id="derivatives" class="tab-content">
+              <div class="formula-card"><span>Derivadas simbólicas</span><code id="symbolicFx">∂f/∂x = —</code><code id="symbolicFy">∂f/∂y = —</code></div>
+              <div class="formula-card"><span>Hessiana</span><code id="symbolicFxx">fₓₓ = —</code><code id="symbolicFxy">fₓᵧ = —</code><code id="symbolicFyy">fᵧᵧ = —</code></div>
+            </div>
+            <div id="contours" class="tab-content"><canvas id="contourCanvas" width="800" height="420"></canvas><p class="muted">As curvas de nível são projeções f(x,y)=c no plano xy. Elas ajudam a enxergar a geometria sem a perspectiva 3D.</p></div>
+            <div id="integration" class="tab-content">
+              <div class="integration-form"><label>x mínimo<input id="xmin" type="number" value="-2" step="0.5"></label><label>x máximo<input id="xmax" type="number" value="2" step="0.5"></label><label>y mínimo<input id="ymin" type="number" value="-2" step="0.5"></label><label>y máximo<input id="ymax" type="number" value="2" step="0.5"></label><button id="integrateBtn">Calcular ∬ f dA</button></div>
+              <div class="integral-result"><span>Integral numérica</span><strong id="integralValue">—</strong><small>Regra do ponto médio em uma malha adaptativa.</small></div>
+            </div>
+          </section>
+
+          <section class="panel guide">
+            <div class="eyebrow">ROTEIRO DIDÁTICO</div>
+            <h2>Experimente</h2>
+            <ol><li>Escolha uma função.</li><li>Mova o ponto de análise.</li><li>Ative o plano tangente.</li><li>Ative o gradiente e compare a direção.</li><li>Abra “Curvas de nível”.</li><li>Calcule uma integral sobre uma região.</li></ol>
+            <button id="demoBtn" class="primary">Executar demonstração</button>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@14.0.1/lib/browser/math.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
